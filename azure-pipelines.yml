@@ -8,7 +8,7 @@ variables:
 stages:
 - stage: 'Build'
   displayName: 'Build the web application'
-  jobs: 
+  jobs:
   - job: 'Build'
     displayName: 'Build job'
     pool:
@@ -21,8 +21,6 @@ stages:
       dotnetSdkVersion: '8.x'
 
     steps:
-
-    # ✅ FIX 1: Force Node 18 (prevents node-sass crash)
     - task: NodeTool@0
       displayName: 'Use Node.js 18'
       inputs:
@@ -35,10 +33,7 @@ stages:
 
     - task: Npm@1
       displayName: 'Run npm install'
-      inputs:
-        verbose: false
 
-    # ❌ FIX 2: Replace node-sass with sass
     - script: 'npx sass $(wwwrootDir):$(wwwrootDir)'
       displayName: 'Compile Sass assets'
 
@@ -67,33 +62,9 @@ stages:
       inputs:
         command: 'publish'
         projects: '**/*.csproj'
-        publishWebProjects: false
+        publishWebProjects: true
         arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
         zipAfterPublish: true
 
     - publish: '$(Build.ArtifactStagingDirectory)'
       artifact: drop
-- stage: 'Dev'
-  displayName: 'Deploy to the dev environment'
-  dependsOn: Build
-  condition:  succeeded()
-  jobs:
-  - deployment: Deploy
-    pool:
-      vmImage: 'ubuntu-22.04'
-    environment: dev
-    variables:
-    - group: "Variables for tail-space-game-project"
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: drop
-          - task: AzureWebApp@1
-            displayName: 'Azure App Service Deploy: dev website'
-            inputs:
-              azureSubscription: 'Azure subscription 1(2)(26ffe6a7-996b-4c51-aadd-55382465571f)'
-              appType: 'webAppLinux'
-              appName: 'mynewwebapp'
-              package: '$(Pipeline.Workspace)/drop/Release/*.zip'
